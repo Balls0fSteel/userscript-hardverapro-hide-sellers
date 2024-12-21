@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         HardverApro User Blocker (Extended Editing)
 // @namespace    http://tampermonkey.net/
-// @version      3.0
+// @version      3.1
 // @description  Hide advertisements from blocked users on HardverApro, manage them in a table with notes and block date. Now supports adding, editing, and deleting from the management UI.
-// @author       You
+// @author       Duke
 // @match        https://hardverapro.hu/*
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -142,6 +142,13 @@
         const title = document.createElement('h2');
         title.textContent = "Blocked Users";
         container.appendChild(title);
+
+        // --- Here's the scrollable wrapper for the table ---
+        const tableContainer = document.createElement('div');
+        // Adjust these values if you want more or less visible rows
+        tableContainer.style.maxHeight = "300px";
+        tableContainer.style.overflowY = "auto";
+        tableContainer.style.marginBottom = "10px";
 
         const table = document.createElement('table');
         table.style.width = "100%";
@@ -298,7 +305,10 @@
         tbody.appendChild(addRow);
 
         table.appendChild(tbody);
-        container.appendChild(table);
+        // Instead of appending the table directly,
+        // append it to the scrollable container:
+        tableContainer.appendChild(table);
+        container.appendChild(tableContainer);
 
         const closeBtn = document.createElement('button');
         closeBtn.textContent = "Close";
@@ -326,5 +336,4 @@
         childList: true,
         subtree: true
     });
-
 })();
