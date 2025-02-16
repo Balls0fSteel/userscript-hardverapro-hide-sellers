@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         HardverApro User Blocker (Extended Editing)
 // @namespace    http://tampermonkey.net/
-// @version      3.1
-// @description  Hide advertisements from blocked users on HardverApro, manage them in a table with notes and block date. Now supports adding, editing, and deleting from the management UI.
+// @version      3.1.2
+// @description  Hide ads from blocked users on HardverApro and manage them with a UI. Updated for new site markup and adds a floating button.
 // @author       Duke
 // @match        https://hardverapro.hu/*
 // @grant        GM_getValue
@@ -73,10 +73,11 @@
     // ===== Hiding Blocked Ads =====
     function hideBlockedAds() {
         const blockedUsers = getBlockedUsers().map(u => u.username);
-        const ads = document.querySelectorAll('.media');
-
+        // Only select ad items: list items with class "media" and a data-uadid attribute.
+        const ads = document.querySelectorAll('li.media[data-uadid]');
         ads.forEach(ad => {
-            const userLink = ad.querySelector('a[href*="/tag/"]');
+            // In the new markup, the username appears inside .uad-user-text a
+            const userLink = ad.querySelector('.uad-user-text a');
             if (userLink) {
                 const username = userLink.textContent.trim();
                 if (blockedUsers.includes(username)) {
@@ -89,6 +90,7 @@
     // ===== Context Menu (Right-Click) Blocking =====
     function addContextMenu() {
         document.addEventListener('contextmenu', function(e) {
+            // Look for a link that contains "/tag/" in its href.
             const userLink = e.target.closest('a[href*="/tag/"]');
             if (userLink) {
                 e.preventDefault();
@@ -97,12 +99,12 @@
                 const isBlocked = blockedUsers.some(u => u.username === username);
 
                 if (isBlocked) {
-                    if (confirm(`Unblock user ${username}?`)) {
+                    if (confirm(`Unblock user "${username}"?`)) {
                         removeBlockedUser(username);
                         hideBlockedAds();
                     }
                 } else {
-                    if (confirm(`Block user ${username}?`)) {
+                    if (confirm(`Block user "${username}"?`)) {
                         const note = prompt("Add a note for this user (optional):", "");
                         addBlockedUser(username, note);
                         hideBlockedAds();
@@ -114,49 +116,55 @@
 
     // ===== Management UI =====
     function createManagementUI() {
-        // Remove if exists
+        // Remove any existing modal
         let existing = document.getElementById('blockedUsersModal');
         if (existing) existing.remove();
 
         const modal = document.createElement('div');
         modal.id = "blockedUsersModal";
-        modal.style.position = "fixed";
-        modal.style.top = "0";
-        modal.style.left = "0";
-        modal.style.width = "100%";
-        modal.style.height = "100%";
-        modal.style.backgroundColor = "rgba(0,0,0,0.7)";
-        modal.style.zIndex = "999999";
-        modal.style.display = "flex";
-        modal.style.justifyContent = "center";
-        modal.style.alignItems = "center";
+        Object.assign(modal.style, {
+            position: "fixed",
+            top: "0",
+            left: "0",
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0,0,0,0.7)",
+            zIndex: "999999",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center"
+        });
 
         const container = document.createElement('div');
-        container.style.backgroundColor = "#fff";
-        container.style.padding = "20px";
-        container.style.borderRadius = "5px";
-        container.style.maxWidth = "600px";
-        container.style.width = "100%";
-        container.style.boxSizing = "border-box";
+        Object.assign(container.style, {
+            backgroundColor: "#fff",
+            padding: "20px",
+            borderRadius: "5px",
+            maxWidth: "600px",
+            width: "100%",
+            boxSizing: "border-box"
+        });
 
         const title = document.createElement('h2');
         title.textContent = "Blocked Users";
         container.appendChild(title);
 
-        // --- Here's the scrollable wrapper for the table ---
+        // Scrollable table container
         const tableContainer = document.createElement('div');
-        // Adjust these values if you want more or less visible rows
-        tableContainer.style.maxHeight = "300px";
-        tableContainer.style.overflowY = "auto";
-        tableContainer.style.marginBottom = "10px";
+        Object.assign(tableContainer.style, {
+            maxHeight: "300px",
+            overflowY: "auto",
+            marginBottom: "10px"
+        });
 
         const table = document.createElement('table');
-        table.style.width = "100%";
-        table.style.borderCollapse = "collapse";
+        Object.assign(table.style, {
+            width: "100%",
+            borderCollapse: "collapse"
+        });
 
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
-
         ["Username", "Note", "Blocked Date", "Actions"].forEach(headerText => {
             const th = document.createElement('th');
             th.textContent = headerText;
@@ -164,14 +172,13 @@
             th.style.padding = "8px";
             headerRow.appendChild(th);
         });
-
         thead.appendChild(headerRow);
         table.appendChild(thead);
 
         const tbody = document.createElement('tbody');
         const blockedUsers = getBlockedUsers();
 
-        // Existing users
+        // Existing users rows
         blockedUsers.forEach(user => {
             const row = document.createElement('tr');
 
@@ -183,14 +190,14 @@
             userInput.type = "text";
             userInput.value = user.username;
             userInput.style.width = "100%";
-            userInput.dataset.oldUsername = user.username; // store old username
+            userInput.dataset.oldUsername = user.username;
             userCell.appendChild(userInput);
             row.appendChild(userCell);
 
             // Note cell (editable)
             const noteCell = document.createElement('td');
-            noteCell.style.borderBottom = "1px solid #ccc";
             noteCell.style.padding = "8px";
+            noteCell.style.borderBottom = "1px solid #ccc";
             const noteInput = document.createElement('input');
             noteInput.type = "text";
             noteInput.value = user.note || "";
@@ -201,14 +208,14 @@
             // Date cell (read-only)
             const dateCell = document.createElement('td');
             dateCell.textContent = new Date(user.date).toLocaleString();
-            dateCell.style.borderBottom = "1px solid #ccc";
             dateCell.style.padding = "8px";
+            dateCell.style.borderBottom = "1px solid #ccc";
             row.appendChild(dateCell);
 
             // Actions cell
             const actionCell = document.createElement('td');
-            actionCell.style.borderBottom = "1px solid #ccc";
             actionCell.style.padding = "8px";
+            actionCell.style.borderBottom = "1px solid #ccc";
 
             const saveBtn = document.createElement('button');
             saveBtn.textContent = "Save";
@@ -224,7 +231,6 @@
                 }
 
                 if (updateBlockedUser(oldUsername, newUsername, newNote)) {
-                    // Update the stored oldUsername
                     userInput.dataset.oldUsername = newUsername;
                     alert("User updated successfully.");
                     hideBlockedAds();
@@ -235,10 +241,10 @@
             const deleteBtn = document.createElement('button');
             deleteBtn.textContent = "Delete";
             deleteBtn.addEventListener('click', function() {
-                if (confirm(`Delete user ${user.username}?`)) {
+                if (confirm(`Delete user "${user.username}"?`)) {
                     removeBlockedUser(user.username);
                     hideBlockedAds();
-                    createManagementUI(); // Refresh UI
+                    createManagementUI(); // refresh UI
                 }
             });
             actionCell.appendChild(deleteBtn);
@@ -247,10 +253,10 @@
             tbody.appendChild(row);
         });
 
-        // Add new user row
+        // New user row
         const addRow = document.createElement('tr');
 
-        // Username input
+        // New Username input
         const newUserCell = document.createElement('td');
         newUserCell.style.padding = "8px";
         newUserCell.style.borderBottom = "1px solid #ccc";
@@ -261,7 +267,7 @@
         newUserCell.appendChild(newUserInput);
         addRow.appendChild(newUserCell);
 
-        // Note input
+        // New Note input
         const newNoteCell = document.createElement('td');
         newNoteCell.style.padding = "8px";
         newNoteCell.style.borderBottom = "1px solid #ccc";
@@ -272,14 +278,14 @@
         newNoteCell.appendChild(newNoteInput);
         addRow.appendChild(newNoteCell);
 
-        // Date cell (will be filled automatically on add)
+        // Date cell placeholder
         const newDateCell = document.createElement('td');
         newDateCell.style.padding = "8px";
         newDateCell.style.borderBottom = "1px solid #ccc";
         newDateCell.textContent = "Will set on add";
         addRow.appendChild(newDateCell);
 
-        // Actions cell (Add button)
+        // Add button cell
         const newActionCell = document.createElement('td');
         newActionCell.style.padding = "8px";
         newActionCell.style.borderBottom = "1px solid #ccc";
@@ -296,17 +302,14 @@
 
             if (addBlockedUser(username, note)) {
                 hideBlockedAds();
-                createManagementUI(); // Refresh UI after adding
+                createManagementUI(); // refresh UI after adding
             }
         });
         newActionCell.appendChild(addBtn);
         addRow.appendChild(newActionCell);
 
         tbody.appendChild(addRow);
-
         table.appendChild(tbody);
-        // Instead of appending the table directly,
-        // append it to the scrollable container:
         tableContainer.appendChild(table);
         container.appendChild(tableContainer);
 
@@ -322,15 +325,39 @@
         document.body.appendChild(modal);
     }
 
-    GM_registerMenuCommand('Manage Blocked Users', function() {
-        createManagementUI();
-    });
+    // ===== Floating Button UI =====
+    function addFloatingButton() {
+        // Check if already added
+        if (document.getElementById('blockedUsersFloatingBtn')) return;
+        const btn = document.createElement('button');
+        btn.id = "blockedUsersFloatingBtn";
+        btn.textContent = "Manage Blocked Users";
+        Object.assign(btn.style, {
+            position: "fixed",
+            bottom: "10px",
+            right: "10px",
+            zIndex: "999999",
+            padding: "10px 15px",
+            backgroundColor: "#236085",
+            color: "#fff",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+            fontSize: "14px"
+        });
+        btn.addEventListener('click', createManagementUI);
+        document.body.appendChild(btn);
+    }
+
+    // ===== Register Menu Command (in case you use Tampermonkey's menu) =====
+    GM_registerMenuCommand('Manage Blocked Users', createManagementUI);
 
     // ===== Initialization =====
     hideBlockedAds();
     addContextMenu();
+    addFloatingButton();
 
-    // Dynamically loaded content handling
+    // Observe changes to re-apply hiding if new ads load
     const observer = new MutationObserver(hideBlockedAds);
     observer.observe(document.body, {
         childList: true,
