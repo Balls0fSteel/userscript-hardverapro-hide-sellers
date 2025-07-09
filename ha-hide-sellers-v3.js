@@ -87,32 +87,41 @@
         });
     }
 
-    // ===== Context Menu (Right-Click) Blocking =====
-    function addContextMenu() {
-        document.addEventListener('contextmenu', function(e) {
-            // Look for a link that contains "/tag/" in its href.
-            const userLink = e.target.closest('a[href*="/tag/"]');
-            if (userLink) {
-                e.preventDefault();
-                const username = userLink.textContent.trim();
-                const blockedUsers = getBlockedUsers();
-                const isBlocked = blockedUsers.some(u => u.username === username);
+// ===== Context Menu (Right-Click) Blocking on PRICE =====
+function addContextMenu() {
+    document.addEventListener('contextmenu', function (e) {
+        // Detect a right-click anywhere inside the price box
+        const priceEl = e.target.closest('.uad-price');
+        if (!priceEl) return;                 // click was not on a price field
 
-                if (isBlocked) {
-                    if (confirm(`Unblock user "${username}"?`)) {
-                        removeBlockedUser(username);
-                        hideBlockedAds();
-                    }
-                } else {
-                    if (confirm(`Block user "${username}"?`)) {
-                        const note = prompt("Add a note for this user (optional):", "");
-                        addBlockedUser(username, note);
-                        hideBlockedAds();
-                    }
-                }
+        e.preventDefault();                   // suppress the normal menu
+
+        // Find the containing ad card
+        const adItem   = priceEl.closest('li.media[data-uadid]');
+        if (!adItem) return;
+
+        // From that card get the seller link (still inside .uad-user-text a)
+        const userLink = adItem.querySelector('.uad-user-text a');
+        if (!userLink) return;
+
+        const username     = userLink.textContent.trim();
+        const blockedUsers = getBlockedUsers();
+        const isBlocked    = blockedUsers.some(u => u.username === username);
+
+        if (isBlocked) {
+            if (confirm(`Unblock user "${username}"?`)) {
+                removeBlockedUser(username);
+                hideBlockedAds();
             }
-        });
-    }
+        } else {
+            if (confirm(`Block user "${username}"?`)) {
+                const note = prompt("Add a note for this user (optional):", "");
+                addBlockedUser(username, note);
+                hideBlockedAds();
+            }
+        }
+    });
+}
 
     // ===== Management UI =====
     function createManagementUI() {
